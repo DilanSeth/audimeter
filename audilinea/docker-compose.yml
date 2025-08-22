@@ -1,0 +1,148 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # Contenedor ntopng para monitoreo de tráfico
+  ntopng:
+    image: ntop/ntopng:stable
+    container_name: ntopng_monitor
+    network_mode: host  # Necesario para acceder a interfaces de red
+    restart: unless-stopped
+    volumes:
+      - ./ntopng/config:/etc/ntopng
+      - ./ntopng/data:/var/lib/ntopng
+      - ./scripts:/scripts:ro
+    environment:
+      - NTOPNG_USER=${NTOPNG_USER:-admin}
+      - NTOPNG_PASSWORD=${NTOPNG_PASSWORD:-admin123}
+      - ZEROTIER_NETWORK_ID=${ZEROTIER_NETWORK_ID}
+      - ZEROTIER_API_TOKEN=${ZEROTIER_API_TOKEN}
+    command: >
+      sh -c "
+      /scripts/detect_interface.sh && 
+      ntopng -i $$(cat /tmp/target_interface) 
+      -d /var/lib/ntopng 
+      -w 3000 
+      -P /etc/ntopng/ntopng.conf
+      "
+    depends_on:
+      - zerotier
+      - local_db
+
+  # Cliente ZeroTier para conectividad de red privada
+  zerotier:
+    image: zerotier/zerotier:latest
+    container_name: zerotier_client
+    network_mode: host
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - ./zerotier:/var/lib/zerotier-one
+    environment:
+      - ZEROTIER_NETWORK_ID=${ZEROTIER_NETWORK_ID}
+      - ZEROTIER_API_TOKEN=${ZEROTIER_API_TOKEN}
+    command: >
+      sh -c "
+      zerotier-one -d &&
+      sleep 5 &&
+      zerotier-cli join ${ZEROTIER_NETWORK_ID} &&
+      tail -f /dev/null
+      "
+
+  # Extractor de datos de ntopng
+  data_extractor:
+    build: 
+      context: ./extractor
+      dockerfile: Dockerfile
+    container_name: ntopng_extractor
+    restart: unless-stopped
+    networks:
+      - monitoring_network
+    volumes:
+      - ./extractor:/app
+      - ./logs:/app/logs
+    environment:
+      - NTOPNG_HOST=localhost
+      - NTOPNG_PORT=3000
+      - NTOPNG_USER=${NTOPNG_USER:-admin}
+      - NTOPNG_PASSWORD=${NTOPNG_PASSWORD:-admin123}
+      - REMOTE_ENDPOINT=${REMOTE_ENDPOINT}
+      - REMOTE_API_KEY=${REMOTE_API_KEY}
+      - POLL_INTERVAL=${POLL_INTERVAL:-10}
+      - DB_HOST=local_db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-audience_metrics}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres123}
+    depends_on:
+      - ntopng
+      - local_db
+
+  # Base de datos local para respaldo temporal
+  local_db:
+    image: postgres:15-alpine
+    container_name: audience_local_db
+    restart: unless-stopped
+    networks:
+      - monitoring_network
+    volumes:
+      - ./db_data:/var/lib/postgresql/data
+      - ./db_init:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_DB=${DB_NAME:-audience_metrics}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres123}
+      - POSTGRES_INITDB_ARGS=--data-checksums
+
+  # Limpiador de datos antiguos
+  data_cleaner:
+    build:
+      context: ./cleaner
+      dockerfile: Dockerfile
+    container_name: data_cleaner
+    restart: unless-stopped
+    networks:
+      - monitoring_network
+    volumes:
+      - ./cleaner:/app
+    environment:
+      - DB_HOST=local_db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-audience_metrics}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres123}
+      - RETENTION_DAYS=${RETENTION_DAYS:-7}
+    depends_on:
+      - local_db
+
+  # Router virtual (alternativa a OpenWrt)
+  openwrt_router:
+    image: openwrtorg/rootfs:x86-64-22.03.0
+    container_name: virtual_router
+    network_mode: host
+    privileged: true
+    restart: unless-stopped
+    volumes:
+      - ./openwrt/config:/etc/config
+      - ./openwrt/init:/etc/init.d/custom
+    environment:
+      - WIFI_SSID=${WIFI_SSID}
+      - WIFI_PASSWORD=${WIFI_PASSWORD}
+      - LAN_IP=${LAN_IP:-192.168.1.1}
+      - LAN_SUBNET=${LAN_SUBNET:-192.168.1.0/24}
+    command: >
+      sh -c "
+      /etc/init.d/custom/setup_router.sh &&
+      /sbin/init
+      "
+
+networks:
+  monitoring_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  db_data:
+    driver: local
