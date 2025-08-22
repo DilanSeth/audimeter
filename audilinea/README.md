@@ -2,7 +2,7 @@
 
 Sistema completo para monitoreo y medición de audiencias basado en análisis de tráfico de red usando ntopng, containerizado con Docker.
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 ```
 Internet ─── [eno1] Mini PC [USB-Eth/enx*] ─── Red LAN ─── Dispositivos
@@ -14,7 +14,7 @@ Internet ─── [eno1] Mini PC [USB-Eth/enx*] ─── Red LAN ─── Dis
                     └── Data Cleaner (limpieza automática)
 ```
 
-## 📋 Características Principales
+## Características Principales
 
 - **Monitoreo en Tiempo Real**: Análisis de tráfico cada 10 segundos (configurable)
 - **Detección Automática**: Identificación automática de interfaz USB-Ethernet
@@ -24,7 +24,7 @@ Internet ─── [eno1] Mini PC [USB-Eth/enx*] ─── Red LAN ─── Dis
 - **Containerización Completa**: Todo el sistema ejecuta en Docker
 - **Red Privada**: Conectividad segura vía ZeroTier
 
-## 🚀 Instalación Rápida
+## Instalación Rápida
 
 ### 1. Clonar y Configurar
 
@@ -69,7 +69,7 @@ chmod +x deploy.sh
 sudo ./deploy.sh deploy
 ```
 
-## 📊 Mejoras para Granularidad de ntopng
+## Mejoras para Granularidad de ntopng
 
 El sistema incluye configuración optimizada para máxima granularidad:
 
@@ -102,7 +102,7 @@ El sistema incluye configuración optimizada para máxima granularidad:
 /lua/rest/get/host/data.json?host=X  # Detalles por host
 ```
 
-## 🔧 Comandos de Administración
+## Comandos de Administración
 
 ```bash
 # Ver estado del sistema
@@ -122,7 +122,7 @@ docker-compose logs -f data_extractor
 docker-compose logs -f ntopng
 ```
 
-## 📈 Estructura de Datos
+## Estructura de Datos
 
 ### Métricas de Tráfico
 ```sql
@@ -148,7 +148,7 @@ application_summary {
 }
 ```
 
-## 🌐 Detección Automática de Interfaz
+## Detección Automática de Interfaz
 
 El sistema detecta automáticamente la interfaz USB-Ethernet:
 
@@ -162,7 +162,7 @@ USB_INTERFACE=$(ip -o link show | grep -E "(enx|usb)" | grep -v "lo|eno1|eth0|wl
 # usb0 (Algunos adaptadores genéricos)
 ```
 
-## 🔒 Seguridad
+## Seguridad
 
 ### Configuración de Red
 - Contenedor ntopng en modo `host` (acceso a interfaces)
@@ -175,7 +175,7 @@ USB_INTERFACE=$(ip -o link show | grep -E "(enx|usb)" | grep -v "lo|eno1|eth0|wl
 - Eliminación automática de datos enviados al servidor remoto
 - Optimización de almacenamiento local
 
-## 🚨 Solución de Problemas
+## Solución de Problemas
 
 ### ntopng no inicia
 ```bash
@@ -202,7 +202,7 @@ docker-compose exec zerotier zerotier-cli info
 docker-compose exec zerotier zerotier-cli listnetworks
 ```
 
-## 📝 Personalización
+## Personalización
 
 ### Cambiar Frecuencia de Polling
 ```bash
@@ -226,21 +226,14 @@ if total_bytes > ALERT_THRESHOLD:
     await self.send_alert(f"Alto consumo detectado: {total_bytes} bytes")
 ```
 
-## 🤝 Contribuir
-
-1. Fork del proyecto
-2. Crear rama para feature (`git checkout -b feature/nueva-feature`)
-3. Commit cambios (`git commit -am 'Agregar nueva feature'`)
-4. Push a la rama (`git push origin feature/nueva-feature`)
-5. Crear Pull Request
-
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 
-## 📧 Soporte
+## Soporte
 
 Para problemas o preguntas:
 - Abrir issue en GitHub
 - Revisar logs del sistema: `./deploy.sh logs`
+
 - Consultar documentación de ntopng: https://www.ntop.org/guides/ntopng/
